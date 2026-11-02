@@ -44,7 +44,7 @@ Drops at 288 fps via rpicam: 439 in 10 s, rising from ~20/s to a steady ~57/s (�
 
 - The ISP was the drop source. Raw capture loses only a few frames per 10k, in bursts of 2-5 frames. These look like userspace hiccups (v4l2-ctl over SSH, no RT priority), not hardware.
 - `seq` advances across dropped frames, so it is usable as the frame ID.
-- Timestamps are CLOCK_MONOTONIC, taken at frame end (`ts-src-eof`).
+- Timestamps are CLOCK_MONOTONIC. The flag says `ts-src-eof`, but they behave like frame start: dequeue comes at ts + rows · line + 0.26 ms (see crop-evaluation.md).
 - The driver's minimum vblank (22) is not usable on Pi 3 unicam: the stream stalls at vblank ≤ 30. **Use vblank ≥ 34 → max ~288 fps.**
 
 ## 5. vblank change while streaming (direct ioctl, R8, vblank 144)
