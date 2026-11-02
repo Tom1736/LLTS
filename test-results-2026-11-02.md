@@ -35,7 +35,7 @@ Method: a 10x7-square board (9x6 inner corners) on the tablet (`/board` page). V
 | cx | **626.891 px** (−12.6 from centre) | 0.773 | 1.50 | |
 | cy | **428.263 px** (+28.8 from centre) | 0.723 | 1.47 | |
 
-The model std from OpenCV is about half the bootstrap spread. Use the bootstrap values as the real uncertainty.
+The model std from OpenCV is about half the bootstrap spread. Use the bootstrap values as the real uncertainty. The bootstrap estimate itself varies by about 20 % between runs: a rerun with `tools/stability.py` gave fx ±3.80, cx ±1.98, cy ±1.84, corners ±1.4-1.6 px. So read it as fx ≈ ±3-4 px and corners ≈ ±1.5 px.
 
 ```
 K = [[951.831,   0.000, 626.891],
@@ -83,7 +83,8 @@ Bootstrap (40 resamples of the views, recalibrated each time), 5-parameter model
   - Start with `python3 live.py 1280 800 10`. Uses ~100 % CPU on the Zero at 1280x800, so it is only for setup.
 - `tools/calib_capture.py <pi-ip> <outdir> [target]`: auto capture from the live view. It posts its status to the page and resumes if `outdir` already has views.
 - `tools/calib_solve.py <dir>`: calibration with outlier rejection, FOV and distortion. Writes `calibration.json`.
-- `tools/stability.py <dir>`: split-half stability and point coverage.
+- `tools/stability.py <dir> [resamples]`: bootstrap stability and point coverage.
+- `tools/calibrate_pi.sh <pi-ip> <name>`: whole procedure in one command. Step-by-step guide in [tools/README.md](tools/README.md).
 - `tools/quality.py <jpgs…>`: edge width, contrast, noise, clipping. The board ROI is set by the env variable `ROI=y0,y1,x0,x1`.
 - PC requirements: Python with `opencv-python`, `numpy` and `pillow`.
 
