@@ -11,7 +11,7 @@
 | libcamera / rpicam-apps | 0.7.2 / 1.13.0 | 0.7.2 / 1.14.0 |
 | Benutzer | `tom` | `tom` |
 | Kamera | OV9281, Bild steht auf dem Kopf (Kamera um 180° gedreht montiert) | OV9281 |
-| Ergebnisse | [test-results-2026-11-02.md](test-results-2026-11-02.md) | [test-results-2026-10-29.md](test-results-2026-10-29.md) |
+| Ergebnisse | [test-results-2026-11-02.md](testing%20documents/test-results-2026-11-02.md) | [test-results-2026-10-29.md](testing%20documents/test-results-2026-10-29.md) |
 
 - **Die IPs kommen per DHCP und können sich ändern.** Am besten im Router fest reservieren.
 - **Pi finden:** In der Geräteliste des Routers oder mit `arp -a` am PC. Raspberry Pis dieser Generation haben MAC-Adressen, die mit `b8-27-eb` beginnen.
@@ -36,7 +36,8 @@ dtparam=i2c_vc_baudrate=400000
 dtoverlay=ov9281
 ```
 Danach ist ein Neustart nötig. Prüfen mit `rpicam-hello --list-cameras`. Erwartet wird: `ov9281 [1280x800 10-bit MONO] (/base/soc/i2c0mux/i2c@1/ov9281@60)`.
-Auf dem Zero liegt die Original-Datei als `config.txt.bak-2026-11-02`.
+Auf beiden Pis liegt eine Sicherung der vorherigen Datei als `config.txt.bak-2026-11-02`. Auf dem Zero ist es der Stand vor den Kamera-Einträgen, auf dem 3B der Stand vor der Umstellung auf I2C mit 400 kHz.
+**I2C mit 400 kHz ist nötig**, damit das ROI ohne Drops verschoben werden kann (siehe [crop-evaluation.md](testing%20documents/crop-evaluation.md)).
 
 Modi (beide Pis gleich):
 | Format | 640x400 | 1280x720 | 1280x800 |
@@ -44,7 +45,10 @@ Modi (beide Pis gleich):
 | R8 | 309,79 fps | 171,79 fps | 143,66 fps |
 | R10 | 247,83 fps | 137,42 fps | 114,93 fps |
 
-Die libcamera-Angaben für R8 sind ca. 4 % zu hoch, siehe die Messungen in [test-results-2026-10-29.md](test-results-2026-10-29.md). 640x400 ist gebinnt aus dem vollen Sensorbild.
+Die libcamera-Angaben für R8 sind ca. 4 % zu hoch, siehe die Messungen in [test-results-2026-10-29.md](testing%20documents/test-results-2026-10-29.md).
+- 640x400 tastet das volle Sensorbild 2× ab (laut crop-evaluation Skipping, y_inc 2).
+- Höhere Bildraten bekommt man per **Sensor-Crop (ROI)** über I2C, bis über 1000 fps (siehe [crop-evaluation.md](testing%20documents/crop-evaluation.md)).
+- Der Treiber streamt mit **Mirror und Flip** (Register 0x3820/0x3821). Bildkoordinaten (Ausgabe-Pixel) und Sensor-Array-Koordinaten sind also gespiegelt; `tools/crop/roi.py` rechnet das um.
 
 ## Wichtig
 - ⚠️ **Das Kamerakabel nie unter Strom ab- oder anstecken.** Danach liefert der Sensor nichts mehr (`stream on failed in subdev`, `Device timeout`). Nur ein Neustart hilft, und das Abstecken kann die Hardware beschädigen.
@@ -52,6 +56,8 @@ Die libcamera-Angaben für R8 sind ca. 4 % zu hoch, siehe die Messungen in [test
   - **Nur 2,4-GHz-WLAN.**
   - **Kleiner 22-poliger Kameraanschluss**, braucht ein Adapterkabel von 22 auf 15 Pins.
   - Nur 1 langsamer Kern. Das Livebild in 1280x800 lastet ihn zu ca. 100 % aus.
-  - Hohe Bildraten wie am 3B (bis 288 fps) sind auf dem Zero **noch nicht getestet**; das ist Test 8.
-- **Livebild / Fokus / Kalibrierung:** `tools/live.py` auf dem Pi starten und `http://<ip>:8000` öffnen. Anleitung: [tools/README.md](tools/README.md). Auf dem Zero liegt es auch unter `~/t/live.py`.
+  - Hohe Bildraten wie am 3B (bis 288 fps, mit ROI über 1000 fps) sind auf dem Zero **noch nicht getestet**; das ist Test 8. In der [Systemarchitektur](System%20Architecture/system-architecture.md) ist der Zero als Kamera-Knoten B vorgesehen. Ob er Aufnahme, ROI-Kopie und Schwerpunkt im Takt schafft, ist offen.
+- **Pi 3B:** Es wird noch **Unterspannung** geloggt, das Netzteil muss geprüft werden (crop-evaluation, Next steps).
+- **Der Treiber schaltet den Sensor aus, wenn nicht gestreamt wird.** Register sind erst nach STREAMON erreichbar, und jedes STREAMON schreibt den Modus neu. Ein ROI muss deshalb nach jedem Start neu gesetzt werden.
+- **Livebild / Fokus / Kalibrierung:** `tools/calib/live.py` auf dem Pi starten und `http://<ip>:8000` öffnen. Anleitung: [tools/calib/README.md](tools/calib/README.md). Auf dem Zero liegt es auch unter `~/t/live.py`.
 - **PowerShell und SSH:** Mehrzeilige Befehle aus PowerShell kommen mit BOM und CRLF beim Pi an, und bash versteht sie dann nicht. Besser Git Bash oder die Windows-Eingabeaufforderung verwenden.

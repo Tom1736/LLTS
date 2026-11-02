@@ -1,6 +1,6 @@
 # Kamera kalibrieren (OV9281)
 
-Jede Kamera muss **einzeln** kalibriert werden. Gleiches Modell heißt nicht gleiche Werte. Die Bildmitte allein lag beim Zero schon 29 px daneben, das sind ca. 1,8° Richtungsfehler. Ergebnisse und Erfahrungen vom Zero: [../test-results-2026-11-02.md](../test-results-2026-11-02.md).
+Jede Kamera muss **einzeln** kalibriert werden. Gleiches Modell heißt nicht gleiche Werte. Die Bildmitte allein lag beim Zero schon 29 px daneben, das sind ca. 1,8° Richtungsfehler. Ergebnisse und Erfahrungen vom Zero: [test-results-2026-11-02.md](../../testing%20documents/test-results-2026-11-02.md), Grundlagen: [Kamera-Grundlagen.md](../../Kamera-Grundlagen.md).
 
 ## Vorher prüfen
 - **Kamera wird erkannt:** `rpicam-hello --list-cameras` auf dem Pi zeigt `ov9281`. Falls nicht, braucht `/boot/firmware/config.txt` diese Zeilen (danach Neustart):
@@ -13,13 +13,13 @@ Jede Kamera muss **einzeln** kalibriert werden. Gleiches Modell heißt nicht gle
   ```
   type %USERPROFILE%\.ssh\id_ed25519.pub | ssh tom@<ip> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
   ```
-- **Python-Pakete** auf dem PC: `python -m pip install -r tools/requirements.txt`
+- **Python-Pakete** auf dem PC: `python -m pip install -r tools/calib/requirements.txt`
 - **Nicht mehr am Objektiv drehen.** Fokus vorher einstellen (Livebild, Schärfewert). Jede Drehung danach macht die Kalibrierung ungültig.
 
 ## Ablauf
 In Git Bash im Ordner `LLTS`:
 ```
-tools/calibrate_pi.sh <pi-ip> <name>        # z. B. tools/calibrate_pi.sh 192.168.1.94 pi3b-2026-11-03
+tools/calib/calibrate_pi.sh <pi-ip> <name>        # z. B. tools/calib/calibrate_pi.sh 192.168.1.94 pi3b-2026-11-03
 ```
 1. Das Skript startet das Livebild auf dem Pi und die automatische Aufnahme.
 2. **Tablet:** `http://<pi-ip>:8000/board` öffnen und antippen (Vollbild). Helligkeit ca. 50 %, Auto-Sperre aus.

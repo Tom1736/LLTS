@@ -116,7 +116,7 @@ async function cal(){
     if(s.n!==undefined){
       $('cal').style.display='flex';$('cn').textContent=s.n;$('cm').textContent=s.msg||'';
       $('cm').style.color=s.color||'#eee';
-      // grid is in sensor orientation; the page shows the same orientation
+      // grid is in image coordinates, the same orientation the page shows
       $('grid').innerHTML=s.grid.map(r=>'<tr>'+r.map(v=>
         `<td style="width:34px;height:22px;border:1px solid #555;text-align:center;background:${v>=3?'#2a6':v>0?'#a82':'#822'}">${v}</td>`).join('')+'</tr>').join('');
       if(lastN>=0&&s.n>lastN){c.style.outline='8px solid #2f6';setTimeout(()=>c.style.outline='',400);}

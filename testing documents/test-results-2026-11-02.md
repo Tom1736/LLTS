@@ -8,7 +8,7 @@ Calibration computed on the PC with OpenCV 5.0.0.
 - `/boot/firmware/config.txt` now matches the Pi 3B: `camera_auto_detect=0`, `dtparam=i2c_vc_baudrate=400000`, `dtoverlay=ov9281`. Backup: `config.txt.bak-2026-11-02`.
 - After a reboot: `ov9281 [1280x800 10-bit MONO] (/base/soc/i2c0mux/i2c@1/ov9281@60)`, same modes as on the 3B.
 - **Unplugging the CSI cable while powered kills the stream.** unicam logs `stream on failed in subdev`, rpicam logs `Device timeout`. Restarting rpicam doesn't help; only a reboot does. Never plug or unplug the cable while powered.
-- The camera is mounted upside down (image rotated 180°). **All values below are in sensor orientation.**
+- The camera is mounted upside down, so the image appears rotated 180°. **All values below are in output-pixel coordinates**: the 1280x800 image as V4L2 delivers it, with the driver's mirror/flip already applied and no extra rotation. These are the same coordinates `tools/crop/roi.py` uses (see `crop-evaluation.md`).
 
 ## 2. Image quality (tablet checkerboard, 1280x800, MJPEG, auto exposure)
 | Lighting | Clipped on board | Black / white | Edge width 10-90 % (h / v) | Temporal noise |
@@ -35,14 +35,14 @@ Method: a 10x7-square board (9x6 inner corners) on the tablet (`/board` page). V
 | cx | **626.891 px** (−12.6 from centre) | 0.773 | 1.50 | |
 | cy | **428.263 px** (+28.8 from centre) | 0.723 | 1.47 | |
 
-The model std from OpenCV is about half the bootstrap spread. Use the bootstrap values as the real uncertainty. The bootstrap estimate itself varies by about 20 % between runs: a rerun with `tools/stability.py` gave fx ±3.80, cx ±1.98, cy ±1.84, corners ±1.4-1.6 px. So read it as fx ≈ ±3-4 px and corners ≈ ±1.5 px.
+The model std from OpenCV is about half the bootstrap spread. Use the bootstrap values as the real uncertainty. The bootstrap estimate itself varies by about 20 % between runs: a rerun with `tools/calib/stability.py` gave fx ±3.80, cx ±1.98, cy ±1.84, corners ±1.4-1.6 px. So read it as fx ≈ ±3-4 px and corners ≈ ±1.5 px.
 
 ```
 K = [[951.831,   0.000, 626.891],
      [  0.000, 951.130, 428.263],
      [  0.000,   0.000,   1.000]]
 dist (k1, k2, p1, p2, k3) = [0.176675, -0.434961, 0.002631, -0.000089, 0.339641]
-image size 1280x800, sensor orientation
+image size 1280x800, output-pixel coordinates
 ```
 
 ### Field of view (including distortion)
@@ -72,20 +72,20 @@ Bootstrap (40 resamples of the views, recalibrated each time), 5-parameter model
 - Views 51-60 were taken from further away (board scale 0.09-0.13 vs median 0.15), so they improved the result only a little.
 - **Weakest region: the bottom corners.** Only 1 point lies within 60 px of the bottom edge. Views with the board touching the bottom-left and bottom-right edge would still help most.
 - 1 px ≈ 0.06°, so the remaining corner uncertainty is < 0.1°.
-- **The calibration is only valid while the lens is not turned.** It also applies to the 1280x800 mode only; 640x400 is binned and needs K scaled by 0.5.
+- **The calibration is only valid while the lens is not turned.** It applies to the 1280x800 mode. A sensor crop (ROI, see `crop-evaluation.md`) with origin (x0, y0) keeps fx, fy and dist and only shifts the centre: cx − x0, cy − y0, because the crop is pixel-exact. 640x400 is a 2× subsampled mode (skipping): scale K by about 0.5. Its exact half-pixel offset has not been verified.
 
 ## 4. Data and tools
-- `calib/zero-2026-11-02/`: the 60 calibration views. Each view has an `img_NNN.jpg` (1280x800, sensor orientation) and an `img_NNN.json` with corners, pose features and white level. The result is in `calibration.json` (K, dist, RMS, std).
-- `tools/live.py` (runs on the Pi, also at `~/t/live.py` on the Zero): live view on port 8000.
+- `calib/zero-2026-11-02/`: the 60 calibration views. Each view has an `img_NNN.jpg` (1280x800, output-pixel coordinates) and an `img_NNN.json` with corners, pose features and white level. The result is in `calibration.json` (K, dist, RMS, std).
+- `tools/calib/live.py` (runs on the Pi, also at `~/t/live.py` on the Zero): live view on port 8000.
   - `/` shows the image with crosshair, sharpness, brightness and clipping.
   - `/board` shows the calibration pattern for the tablet.
   - `/status` is the capture feedback.
   - Start with `python3 live.py 1280 800 10`. Uses ~100 % CPU on the Zero at 1280x800, so it is only for setup.
-- `tools/calib_capture.py <pi-ip> <outdir> [target]`: auto capture from the live view. It posts its status to the page and resumes if `outdir` already has views.
-- `tools/calib_solve.py <dir>`: calibration with outlier rejection, FOV and distortion. Writes `calibration.json`.
-- `tools/stability.py <dir> [resamples]`: bootstrap stability and point coverage.
-- `tools/calibrate_pi.sh <pi-ip> <name>`: whole procedure in one command. Step-by-step guide in [tools/README.md](tools/README.md).
-- `tools/quality.py <jpgs…>`: edge width, contrast, noise, clipping. The board ROI is set by the env variable `ROI=y0,y1,x0,x1`.
+- `tools/calib/calib_capture.py <pi-ip> <outdir> [target]`: auto capture from the live view. It posts its status to the page and resumes if `outdir` already has views.
+- `tools/calib/calib_solve.py <dir>`: calibration with outlier rejection, FOV and distortion. Writes `calibration.json`.
+- `tools/calib/stability.py <dir> [resamples]`: bootstrap stability and point coverage.
+- `tools/calib/calibrate_pi.sh <pi-ip> <name>`: whole procedure in one command. Step-by-step guide in [tools/calib/README.md](../tools/calib/README.md).
+- `tools/calib/quality.py <jpgs…>`: edge width, contrast, noise, clipping. The board ROI is set by the env variable `ROI=y0,y1,x0,x1`.
 - PC requirements: Python with `opencv-python`, `numpy` and `pillow`.
 
 ## Not done

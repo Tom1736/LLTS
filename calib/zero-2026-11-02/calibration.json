@@ -101,5 +101,5 @@
   0.0002549379040340009,
   0.008538497041177184
  ],
- "note": "sensor orientation (image appears upside down on this mount)"
+ "note": "output-pixel coordinates as delivered by V4L2 (driver mirror/flip applied, no extra rotation); same coordinates as tools/crop/roi.py"
 }

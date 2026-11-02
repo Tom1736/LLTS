@@ -87,6 +87,6 @@ print(f"Verschiebung durch Verzeichnung: Ecke {disp.max():.3f} px, Mittel {disp.
 
 json.dump({"image_size": [w, h], "K": K.tolist(), "dist": dist.ravel().tolist(), "rms": rms,
            "views": [v[0] for v in views], "std": sd.tolist()[:9],
-           "note": "sensor orientation (image appears upside down on this mount)"},
+           "note": "output-pixel coordinates as delivered by V4L2 (driver mirror/flip applied, no extra rotation); same coordinates as tools/crop/roi.py"},
           open(os.path.join(D, "calibration.json"), "w"), indent=1)
 print(f"\nGespeichert: {os.path.join(D, 'calibration.json')}")
