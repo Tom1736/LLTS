@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jiggly Tracking Architecture</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --surface: #ffffff;
+    --ink: #1d1d1f;
+    --muted: #6b6b72;
+    --border: #d4d2cb;
+    --line: #34343a;
+    --ctrl: #8b8b94;
+    --accent: #c2410c;
+    --accent-soft: #fff3ea;
+    --zero-fill: rgba(37, 99, 235, 0.06);
+    --zero-stroke: rgba(37, 99, 235, 0.5);
+    --main-fill: rgba(5, 150, 105, 0.06);
+    --main-stroke: rgba(5, 150, 105, 0.5);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141416;
+      --surface: #1f1f23;
+      --ink: #ececf0;
+      --muted: #a0a0aa;
+      --border: #3a3a43;
+      --line: #d6d6dc;
+      --ctrl: #8a8a95;
+      --accent: #fb923c;
+      --accent-soft: #2a1d14;
+      --zero-fill: rgba(96, 165, 250, 0.08);
+      --zero-stroke: rgba(96, 165, 250, 0.55);
+      --main-fill: rgba(52, 211, 153, 0.07);
+      --main-stroke: rgba(52, 211, 153, 0.5);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141416;
+    --surface: #1f1f23;
+    --ink: #ececf0;
+    --muted: #a0a0aa;
+    --border: #3a3a43;
+    --line: #d6d6dc;
+    --ctrl: #8a8a95;
+    --accent: #fb923c;
+    --accent-soft: #2a1d14;
+    --zero-fill: rgba(96, 165, 250, 0.08);
+    --zero-stroke: rgba(96, 165, 250, 0.55);
+    --main-fill: rgba(52, 211, 153, 0.07);
+    --main-stroke: rgba(52, 211, 153, 0.5);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header, footer {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 20px 16px 8px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 12px; color: var(--muted); max-width: 70ch; }
+  .bar {
+    display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+    font-size: 13px; color: var(--muted);
+  }
+  .key { display: inline-flex; align-items: center; gap: 6px; }
+  .key svg { display: block; }
+  .star { color: var(--accent); }
+  .buttons { margin-left: auto; display: flex; gap: 8px; }
+  button {
+    font: inherit; font-size: 13px;
+    padding: 5px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--muted); }
+  button:focus-visible, .node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  #wrap { overflow-x: auto; overflow-y: hidden; padding: 0 16px; }
+  #stage { position: relative; margin: 0 auto; }
+  #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #world svg { position: absolute; left: 0; top: 0; overflow: visible; }
+
+  .group-shape { stroke-width: 1.5; }
+  .group-label { font-size: 13px; font-weight: 600; }
+  .edge { fill: none; stroke-linecap: round; }
+  .edge.d { stroke: var(--line); stroke-width: 1.6; }
+  .edge.c { stroke: var(--ctrl); stroke-width: 1.4; stroke-dasharray: 5 4; }
+  .elabel {
+    font-size: 11px; fill: var(--muted);
+    paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round;
+  }
+  .ring { fill: none; stroke: var(--accent); stroke-width: 2; opacity: 0.6; }
+
+  .node {
+    position: absolute; left: 0; top: 0;
+    padding: 7px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+    text-align: center;
+    cursor: grab;
+    user-select: none; -webkit-user-select: none;
+    touch-action: none;
+    will-change: transform;
+  }
+  .node.dragging { cursor: grabbing; z-index: 2; }
+  .node b { display: block; font-size: 13px; font-weight: 600; }
+  .node small { display: block; font-size: 11.5px; color: var(--muted); }
+  .node.added { border-color: var(--accent); background: var(--accent-soft); }
+  .node.added b::before { content: "★ "; color: var(--accent); }
+  .node.store { border-radius: 16px / 9px; border-top-width: 3px; border-top-style: double; }
+
+  footer { padding-top: 12px; padding-bottom: 24px; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Revised tracking architecture</h1>
+  <p>Two OV9281 camera nodes, triangulation, prediction and galvo output. Blocks marked <span class="star">★</span> were added to the first hand-drawn sketch.</p>
+  <div class="bar">
+    <span class="key"><svg width="34" height="10"><line x1="1" y1="5" x2="33" y2="5" style="stroke:var(--line);stroke-width:1.6"/></svg>data</span>
+    <span class="key"><svg width="34" height="10"><line x1="1" y1="5" x2="33" y2="5" style="stroke:var(--ctrl);stroke-width:1.4;stroke-dasharray:5 4"/></svg>control / feedback</span>
+    <span class="key"><span class="star">★</span>added block</span>
+    <span>Drag a block and let go. Click empty space for a shockwave.</span>
+    <span class="buttons">
+      <button id="shake" type="button">Shake</button>
+      <button id="reset" type="button">Reset</button>
+    </span>
+  </div>
+</header>
+
+<div id="wrap">
+  <div id="stage">
+    <div id="world">
+      <svg id="svg" aria-hidden="true">
+        <defs>
+          <marker id="ah-d" viewBox="0 0 8 8" refX="7.5" refY="4" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+            <path d="M0,0 L8,4 L0,8 z" style="fill:var(--line)"/>
+          </marker>
+          <marker id="ah-c" viewBox="0 0 8 8" refX="7.5" refY="4" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+            <path d="M0,0 L8,4 L0,8 z" style="fill:var(--ctrl)"/>
+          </marker>
+        </defs>
+        <g id="groups"></g>
+        <g id="edges"></g>
+        <g id="labels"></g>
+        <g id="fx"></g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<footer>Source: system-architecture.md, 2026-11-02.</footer>
+
+<script>
+(() => {
+  const W = 1440, H = 1100;
+  const NS = "http://www.w3.org/2000/svg";
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Physics constants (px, s). Lower damping = more jiggle.
+  const K_HOME = 38, K_EDGE = 22, DAMP = reduce ? 15 : 3.2;
+  const K_MID = 90, D_MID = reduce ? 20 : 3;
+  const D_CORNER = reduce ? 18 : 6;
+  const STEP = 1 / 120;
+
+  const NODES = [
+    { id: "SYNC",  x: 380,  y: 55,   t: "Frame sync", s: ["FSIN trigger or vblank phase lock"], add: 1 },
+
+    { id: "ROIB",  x: 150,  y: 180,  t: "ROI window write", s: ["I2C 0x3802..0x3807"], add: 1, g: "zero" },
+    { id: "CAMB",  x: 150,  y: 290,  t: "Cam B (OV9281)", g: "zero" },
+    { id: "COPYB", x: 150,  y: 390,  t: "Copy ROI rows", s: ["out of DMA buffer"], g: "zero" },
+    { id: "DETB",  x: 150,  y: 500,  t: "Detection", s: ["threshold + centroid"], g: "zero" },
+
+    { id: "ROIA",  x: 560,  y: 180,  t: "ROI window write", s: ["I2C 0x3802..0x3807"], add: 1, g: "main" },
+    { id: "CAMA",  x: 820,  y: 180,  t: "Cam A (OV9281)", g: "main" },
+    { id: "COPYA", x: 820,  y: 280,  t: "Copy ROI rows", s: ["out of DMA buffer"], g: "main" },
+    { id: "DETA",  x: 820,  y: 380,  t: "Detection", s: ["threshold + centroid"], g: "main" },
+    { id: "PAIR",  x: 820,  y: 480,  t: "Pair by timestamp", s: ["interpolate if not locked"], add: 1, g: "main" },
+    { id: "TRI",   x: 820,  y: 585,  t: "3D position", s: ["triangulation"], g: "main" },
+    { id: "CALS",  x: 1080, y: 585,  t: "Stereo calibration", s: ["intrinsics + relative pose"], add: 1, store: 1, g: "main" },
+    { id: "TRACK", x: 820,  y: 695,  t: "Track filter", s: ["α-β / Kalman, outlier gating", "history: latest 3-5 positions"], g: "main" },
+    { id: "WD",    x: 1080, y: 695,  t: "Watchdog / laser enable", s: ["stream alive, track confidence"], add: 1, g: "main" },
+    { id: "PRED",  x: 820,  y: 810,  t: "Predictor", s: ["lead = exposure → beam settled"], g: "main" },
+    { id: "PLAN",  x: 560,  y: 810,  t: "ROI planner", s: ["x step 8, y step 2, width ≥ 120", "full frame when lost"], add: 1, g: "main" },
+    { id: "AIM",   x: 820,  y: 920,  t: "Vector → galvo angles → codes", g: "main" },
+    { id: "CALG",  x: 1080, y: 920,  t: "Galvo calibration", s: ["pose to cameras + mirror model"], add: 1, store: 1, g: "main" },
+
+    { id: "LASER", x: 1340, y: 695,  t: "Laser (gated)", add: 1 },
+    { id: "DAC",   x: 820,  y: 1045, t: "DAC, 2 channels", s: ["★ simultaneous X/Y update (LDAC)"] },
+    { id: "AMP",   x: 1110, y: 1045, t: "Amplifier / level shift", s: ["to galvo driver input, e.g. ±10 V"], add: 1 },
+    { id: "GALVO", x: 1340, y: 1045, t: "Galvo drivers + mirrors" },
+  ];
+
+  // [from, to, kind (d = data, c = control), label, label position t, curve midpoint]
+  const EDGES = [
+    ["SYNC", "CAMA", "c"],
+    ["SYNC", "CAMB", "c", null, 0.5, [300, 240]],
+    ["ROIB", "CAMB", "c"],
+    ["CAMB", "COPYB", "d", "frame"],
+    ["COPYB", "DETB", "d"],
+    ["DETB", "PAIR", "d", "UART: (x, y, t_exp, seq), 16 B"],
+    ["PLAN", "ROIB", "c", "UART: ROI command", 0.5, [387, 345]],
+    ["PLAN", "ROIA", "c", "I2C", 0.3],
+    ["ROIA", "CAMA", "c"],
+    ["CAMA", "COPYA", "d", "frame"],
+    ["COPYA", "DETA", "d"],
+    ["DETA", "PAIR", "d", "(x, y, t_exp, seq)"],
+    ["PAIR", "TRI", "d"],
+    ["CALS", "TRI", "c"],
+    ["TRI", "TRACK", "d"],
+    ["TRACK", "PRED", "d"],
+    ["TRACK", "WD", "c"],
+    ["WD", "LASER", "c", "enable"],
+    ["PRED", "PLAN", "d"],
+    ["PRED", "AIM", "d", "aim point"],
+    ["CALG", "AIM", "c"],
+    ["AIM", "DAC", "d", "SPI: X, Y digital"],
+    ["DAC", "AMP", "d", "X, Y analog"],
+    ["AMP", "GALVO", "d"],
+  ];
+
+  const GROUPS = [
+    { id: "zero", label: "Pi Zero (camera node B)", fill: "--zero-fill", stroke: "--zero-stroke", ks: [60, 72, 55, 66] },
+    { id: "main", label: "Pi 3B (camera node A + main)", fill: "--main-fill", stroke: "--main-stroke", ks: [52, 64, 58, 70] },
+  ];
+
+  const stage = document.getElementById("stage");
+  const world = document.getElementById("world");
+  const svg = document.getElementById("svg");
+  const gGroups = document.getElementById("groups");
+  const gEdges = document.getElementById("edges");
+  const gLabels = document.getElementById("labels");
+  const gFx = document.getElementById("fx");
+  world.style.width = W + "px";
+  world.style.height = H + "px";
+  svg.setAttribute("width", W);
+  svg.setAttribute("height", H);
+
+  const byId = {};
+  for (const n of NODES) {
+    Object.assign(n, { hx: n.x, hy: n.y, vx: 0, vy: 0, drag: false });
+    const el = document.createElement("div");
+    el.className = "node" + (n.add ? " added" : "") + (n.store ? " store" : "");
+    el.tabIndex = 0;
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-label", n.t + (n.s ? ": " + n.s.join(", ") : ""));
+    const b = document.createElement("b");
+    b.textContent = n.t;
+    el.appendChild(b);
+    for (const line of n.s || []) {
+      const sm = document.createElement("small");
+      sm.textContent = line;
+      el.appendChild(sm);
+    }
+    world.appendChild(el);
+    n.el = el;
+    byId[n.id] = n;
+  }
+
+  const edges = EDGES.map(([a, b, kind, label, lt, via]) => {
+    const A = byId[a], B = byId[b];
+    const vx = via ? via[0] : (A.hx + B.hx) / 2;
+    const vy = via ? via[1] : (A.hy + B.hy) / 2;
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("class", "edge " + kind);
+    path.setAttribute("marker-end", `url(#ah-${kind})`);
+    gEdges.appendChild(path);
+    let text = null;
+    if (label) {
+      text = document.createElementNS(NS, "text");
+      text.setAttribute("class", "elabel");
+      text.textContent = label;
+      gLabels.appendChild(text);
+    }
+    return {
+      A, B, path, text, lt: lt ?? 0.5,
+      rest: Math.hypot(B.hx - A.hx, B.hy - A.hy),
+      vxh: vx, vyh: vy, mx: vx, my: vy, mvx: 0, mvy: 0,
+    };
+  });
+
+  const groups = GROUPS.map((g) => {
+    const members = NODES.filter((n) => n.g === g.id);
+    const shape = document.createElementNS(NS, "path");
+    shape.setAttribute("class", "group-shape");
+    shape.style.fill = `var(${g.fill})`;
+    shape.style.stroke = `var(${g.stroke})`;
+    const label = document.createElementNS(NS, "text");
+    label.setAttribute("class", "group-label");
+    label.style.fill = `var(${g.stroke})`;
+    label.textContent = g.label;
+    gGroups.appendChild(shape);
+    gGroups.appendChild(label);
+    return { ...g, members, shape, labelEl: label, corners: [0, 1, 2, 3].map(() => ({ x: 0, y: 0, vx: 0, vy: 0 })) };
+  });
+
+  function measure() {
+    for (const n of NODES) {
+      n.w = n.el.offsetWidth;
+      n.h = n.el.offsetHeight;
+    }
+  }
+
+  function groupTargets(g) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of g.members) {
+      x0 = Math.min(x0, n.x - n.w / 2);
+      x1 = Math.max(x1, n.x + n.w / 2);
+      y0 = Math.min(y0, n.y - n.h / 2);
+      y1 = Math.max(y1, n.y + n.h / 2);
+    }
+    x0 -= 24; x1 += 24; y0 -= 40; y1 += 24;
+    return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  }
+
+  function snapAll() {
+    for (const n of NODES) { n.x = n.hx; n.y = n.hy; n.vx = n.vy = 0; }
+    for (const e of edges) { e.mx = e.vxh; e.my = e.vyh; e.mvx = e.mvy = 0; }
+    for (const g of groups) {
+      groupTargets(g).forEach(([x, y], i) => Object.assign(g.corners[i], { x, y, vx: 0, vy: 0 }));
+    }
+  }
+
+  function sim(dt) {
+    for (const n of NODES) { n.fx = K_HOME * (n.hx - n.x); n.fy = K_HOME * (n.hy - n.y); }
+    for (const e of edges) {
+      const dx = e.B.x - e.A.x, dy = e.B.y - e.A.y;
+      const L = Math.hypot(dx, dy) || 1;
+      const f = K_EDGE * (L - e.rest) / L;
+      e.A.fx += f * dx; e.A.fy += f * dy;
+      e.B.fx -= f * dx; e.B.fy -= f * dy;
+    }
+    for (const n of NODES) {
+      if (n.drag) continue;
+      n.vx += (n.fx - DAMP * n.vx) * dt;
+      n.vy += (n.fy - DAMP * n.vy) * dt;
+      n.x += n.vx * dt;
+      n.y += n.vy * dt;
+    }
+    // Each edge's midpoint is its own particle, so the wires wobble behind the blocks.
+    for (const e of edges) {
+      const tx = e.vxh + ((e.A.x - e.A.hx) + (e.B.x - e.B.hx)) / 2;
+      const ty = e.vyh + ((e.A.y - e.A.hy) + (e.B.y - e.B.hy)) / 2;
+      e.mvx += (K_MID * (tx - e.mx) - D_MID * e.mvx) * dt;
+      e.mvy += (K_MID * (ty - e.my) - D_MID * e.mvy) * dt;
+      e.mx += e.mvx * dt;
+      e.my += e.mvy * dt;
+    }
+    // Group corners chase the members' bounding box at slightly different stiffness, so the box shears like jelly.
+    for (const g of groups) {
+      groupTargets(g).forEach(([tx, ty], i) => {
+        const c = g.corners[i], k = g.ks[i];
+        c.vx += (k * (tx - c.x) - D_CORNER * c.vx) * dt;
+        c.vy += (k * (ty - c.y) - D_CORNER * c.vy) * dt;
+        c.x += c.vx * dt;
+        c.y += c.vy * dt;
+      });
+    }
+  }
+
+  function rectHit(n, dx, dy) {
+    const hw = n.w / 2 + 3, hh = n.h / 2 + 3;
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    const t = Math.min(ax ? hw / ax : Infinity, ay ? hh / ay : Infinity);
+    return [n.x + dx * t, n.y + dy * t];
+  }
+
+  function roundedPoly(pts, r) {
+    let d = "";
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i], prev = pts[(i + pts.length - 1) % pts.length], next = pts[(i + 1) % pts.length];
+      const l1 = Math.hypot(prev.x - p.x, prev.y - p.y) || 1, l2 = Math.hypot(next.x - p.x, next.y - p.y) || 1;
+      const ax = p.x + (prev.x - p.x) * r / l1, ay = p.y + (prev.y - p.y) * r / l1;
+      const bx = p.x + (next.x - p.x) * r / l2, by = p.y + (next.y - p.y) * r / l2;
+      d += (i ? "L" : "M") + ax.toFixed(1) + "," + ay.toFixed(1) + "Q" + p.x.toFixed(1) + "," + p.y.toFixed(1) + " " + bx.toFixed(1) + "," + by.toFixed(1);
+    }
+    return d + "Z";
+  }
+
+  function render() {
+    for (const g of groups) {
+      g.shape.setAttribute("d", roundedPoly(g.corners, 16));
+      const c = g.corners[0];
+      g.labelEl.setAttribute("x", (c.x + 14).toFixed(1));
+      g.labelEl.setAttribute("y", (c.y + 22).toFixed(1));
+    }
+    for (const e of edges) {
+      const [sx, sy] = rectHit(e.A, e.mx - e.A.x, e.my - e.A.y);
+      const [ex, ey] = rectHit(e.B, e.mx - e.B.x, e.my - e.B.y);
+      // Quadratic control point chosen so the curve passes through the midpoint particle.
+      const cx = 2 * e.mx - (sx + ex) / 2, cy = 2 * e.my - (sy + ey) / 2;
+      e.path.setAttribute("d", `M${sx.toFixed(1)},${sy.toFixed(1)}Q${cx.toFixed(1)},${cy.toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}`);
+      if (e.text) {
+        const t = e.lt, u = 1 - t;
+        const lx = u * u * sx + 2 * u * t * cx + t * t * ex;
+        const ly = u * u * sy + 2 * u * t * cy + t * t * ey;
+        const vertical = Math.abs(ex - sx) < Math.abs(ey - sy);
+        e.text.setAttribute("x", (vertical ? lx + 8 : lx).toFixed(1));
+        e.text.setAttribute("y", (vertical ? ly + 4 : ly - 7).toFixed(1));
+        e.text.setAttribute("text-anchor", vertical ? "start" : "middle");
+      }
+    }
+    for (const n of NODES) {
+      const speed = Math.hypot(n.vx, n.vy);
+      const s = reduce ? 1 : 1 + Math.min(speed / 2400, 0.22);
+      const a = Math.atan2(n.vy, n.vx) * 180 / Math.PI;
+      const tilt = reduce ? 0 : Math.max(-8, Math.min(8, n.vx * 0.008));
+      n.el.style.transform =
+        `translate(${(n.x - n.w / 2).toFixed(1)}px, ${(n.y - n.h / 2).toFixed(1)}px) ` +
+        `rotate(${(a + tilt).toFixed(2)}deg) scale(${s.toFixed(3)}, ${(1 / s).toFixed(3)}) rotate(${(-a).toFixed(2)}deg)`;
+    }
+  }
+
+  // Layout scaling: fit the width, but keep text readable on phones by scrolling the stage instead.
+  let scale = 1;
+  function fit() {
+    const wrap = document.getElementById("wrap");
+    const avail = wrap.clientWidth - 32;
+    scale = Math.max(0.55, Math.min(1, avail / W));
+    world.style.transform = `scale(${scale})`;
+    stage.style.width = W * scale + "px";
+    stage.style.height = H * scale + "px";
+  }
+
+  function toWorld(ev) {
+    const r = stage.getBoundingClientRect();
+    return [(ev.clientX - r.left) / scale, (ev.clientY - r.top) / scale];
+  }
+
+  // Dragging
+  for (const n of NODES) {
+    let off = [0, 0], lastP = null, lastT = 0;
+    n.el.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault();
+      n.el.setPointerCapture(ev.pointerId);
+      n.drag = true;
+      n.el.classList.add("dragging");
+      const [x, y] = toWorld(ev);
+      off = [n.x - x, n.y - y];
+      lastP = [x, y]; lastT = ev.timeStamp;
+      n.vx = n.vy = 0;
+    });
+    n.el.addEventListener("pointermove", (ev) => {
+      if (!n.drag) return;
+      const [x, y] = toWorld(ev);
+      const dt = Math.max(1, ev.timeStamp - lastT) / 1000;
+      // Smoothed pointer velocity becomes the fling velocity on release.
+      n.vx = 0.7 * n.vx + 0.3 * (x - lastP[0]) / dt;
+      n.vy = 0.7 * n.vy + 0.3 * (y - lastP[1]) / dt;
+      n.x = x + off[0];
+      n.y = y + off[1];
+      lastP = [x, y]; lastT = ev.timeStamp;
+    });
+    const release = () => {
+      if (!n.drag) return;
+      n.drag = false;
+      n.el.classList.remove("dragging");
+      const sp = Math.hypot(n.vx, n.vy), max = 2500;
+      if (sp > max) { n.vx *= max / sp; n.vy *= max / sp; }
+    };
+    n.el.addEventListener("pointerup", release);
+    n.el.addEventListener("pointercancel", release);
+    n.el.addEventListener("pointerenter", (ev) => {
+      if (reduce || n.drag || ev.pointerType !== "mouse" || ev.buttons) return;
+      n.vy -= 160;
+      n.vx += (Math.random() - 0.5) * 140;
+    });
+    n.el.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      ev.preventDefault();
+      n.vy -= 500;
+      n.vx += (Math.random() - 0.5) * 300;
+    });
+  }
+
+  // Shockwave on empty space
+  stage.addEventListener("click", (ev) => {
+    if (ev.target.closest(".node")) return;
+    const [x, y] = toWorld(ev);
+    const R = 420, P = reduce ? 300 : 1100;
+    const push = (px, py, apply) => {
+      const dx = px - x, dy = py - y, d = Math.hypot(dx, dy) || 1;
+      if (d < R) apply(dx / d * P * (1 - d / R), dy / d * P * (1 - d / R));
+    };
+    for (const n of NODES) push(n.x, n.y, (ix, iy) => { n.vx += ix; n.vy += iy; });
+    for (const e of edges) push(e.mx, e.my, (ix, iy) => { e.mvx += ix * 1.4; e.mvy += iy * 1.4; });
+    if (!reduce) {
+      const ring = document.createElementNS(NS, "circle");
+      ring.setAttribute("class", "ring");
+      ring.setAttribute("cx", x);
+      ring.setAttribute("cy", y);
+      ring.setAttribute("r", 4);
+      gFx.appendChild(ring);
+      const t0 = performance.now();
+      const grow = (now) => {
+        const k = (now - t0) / 500;
+        if (k >= 1) { ring.remove(); return; }
+        ring.setAttribute("r", (4 + k * R * 0.8).toFixed(1));
+        ring.style.opacity = (0.6 * (1 - k)).toFixed(2);
+        requestAnimationFrame(grow);
+      };
+      requestAnimationFrame(grow);
+    }
+  });
+
+  document.getElementById("shake").addEventListener("click", () => {
+    const P = reduce ? 250 : 900;
+    for (const n of NODES) {
+      n.vx += (Math.random() - 0.5) * 2 * P;
+      n.vy += (Math.random() - 0.5) * 2 * P;
+    }
+  });
+  document.getElementById("reset").addEventListener("click", snapAll);
+
+  // Start
+  fit();
+  window.addEventListener("resize", fit);
+  const start = () => {
+    measure();
+    snapAll();
+    if (!reduce) {
+      // Drop in from a scattered state.
+      for (const n of NODES) {
+        n.x += (Math.random() - 0.5) * 280;
+        n.y += (Math.random() - 0.5) * 280;
+      }
+    }
+    let last = performance.now(), acc = 0;
+    const frame = (now) => {
+      acc += Math.min(0.05, (now - last) / 1000);
+      last = now;
+      while (acc >= STEP) { sim(STEP); acc -= STEP; }
+      render();
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(start);
+  else start();
+})();
+</script>
+</body>
+</html>

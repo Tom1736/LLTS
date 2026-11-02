@@ -26,19 +26,21 @@ Tools are in `tools/crop/`. On the Pi they live in `~/t`; build `roi_test` there
 - **Recommendation:** use the userspace I2C approach now (smallest solution) with the camera I2C at 400 kHz. Consider a driver patch only if the hack causes trouble.
 
 ## Frame rates with valid images (vblank 56, frame = (rows + 57) · 7.967 µs)
-| Rows | Frame | fps |
-|---|---|---|
-| 800 (stock driver, vblank 110) | 7.259 ms | 137.8 |
-| 800 (vblank 56; timing measured, image validity not checked) | 6.829 ms | 146.4 |
-| 400 | 3.641 ms | 275 |
-| 200 | 2.048 ms | 488 |
-| 128 | 1.474 ms | 678 |
-| 100 | 1.251 ms | 799 |
-| 64 | 0.964 ms | 1037 |
-| 32 | 0.709 ms | 1410 |
-| 16 | 0.582 ms | 1719 |
+| Rows | Frame | fps | How | Drops |
+|---|---|---|---|---|
+| 800 (stock driver, vblank 110) | 7.259 ms | 137.8 | measured | 0 |
+| 800 (vblank 56) | 6.829 ms | 146.4 | measured timing; image not checked | 0 |
+| 400 | 3.641 ms | 275 | formula | |
+| 200 | 2.047 ms | 488.5 | measured, image checked | 0 / 4000 |
+| 128 | 1.473 ms | 678.7 | measured, image checked | 0 / 4000 |
+| 100 | 1.251 ms | 799 | formula | |
+| 64 (vblank 52) | 0.932 ms | 1073.5 | measured, image checked | 0 / 4000 |
+| 64 | 0.963 ms | 1037.9 | measured, image checked | 0 / 4000 |
+| 32 | 0.709 ms | 1410 | formula | |
+| 16 (vblank 52) | 0.556 ms | 1799.4 | measured, image checked | 147 / 4000 |
+| 16 | 0.582 ms | 1719.1 | measured, image checked | 15 / 4000 |
 
-Rows from 16 to 800 were measured at vblank 34: frame time = VTS + 0.95 lines in every case. The values above use the same formula with vblank 56; 64 rows at VTS 120 was measured directly.
+"Image checked" means the crop's brightness matched the same window at VTS 600 (long frame) within ~1%. Formula rows use frame = (VTS + 0.95) · 7.967 µs, which matched every measurement from 16 to 800 rows within 0.1 line. The 16-row runs dropped some frames; 64 rows and up dropped none.
 
 ## I2C at 400 kHz (`dtparam=i2c_vc_baudrate=400000` in `/boot/firmware/config.txt`)
 The backup of the old config is at `/boot/firmware/config.txt.bak-2026-11-02`.
