@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sync Flash Target</title>
+<style>
+  :root { --bg: #000; --band: #fff; --text: #888; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; cursor: none; }
+  #band { position: absolute; left: 0; right: 0; top: 44%; height: 12%; background: var(--band); visibility: hidden; }
+  #help { position: absolute; left: 16px; bottom: 16px; color: var(--text); font: 14px/1.4 system-ui, sans-serif; cursor: default; }
+</style>
+</head>
+<body>
+<div id="band"></div>
+<div id="help">
+  Aim both cameras at the white band, then click to go full screen and start flashing.<br>
+  A = steady band (aim) &middot; Space = pause &middot; &uarr;/&darr; = band brightness (<span id="lvl"></span>) &middot; Esc = leave full screen
+</div>
+<script>
+// Flashes a full-width white band on black at random times. Both cameras integrate the same
+// light, so the analysis compares where each camera's brightness crosses 50 % of the step.
+// Random on/off times keep the flashes unrelated to the 100 fps frame grid.
+const band = document.getElementById('band'), help = document.getElementById('help');
+let mode = 'aim', timer = null, level = 40;  // band grey in %: keep the band below saturation
+const setLevel = l => {
+  level = Math.max(5, Math.min(100, l));
+  const v = Math.round(level * 2.55);
+  band.style.background = `rgb(${v}, ${v}, ${v})`;
+  document.getElementById('lvl').textContent = level + ' %';
+};
+setLevel(level);
+const show = on => { band.style.visibility = on ? 'visible' : 'hidden'; };
+const rand = (a, b) => a + Math.random() * (b - a);
+function step(on) {
+  show(on);
+  timer = setTimeout(() => step(!on), on ? rand(150, 400) : rand(300, 700));
+}
+function setMode(m) {
+  mode = m; clearTimeout(timer);
+  if (m === 'aim') show(true);
+  else if (m === 'flash') step(false);
+  else show(false);
+  help.style.visibility = m === 'flash' ? 'hidden' : 'visible';
+}
+document.addEventListener('click', () => {
+  if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  setMode('flash');
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'a' || e.key === 'A') setMode(mode === 'aim' ? 'flash' : 'aim');
+  else if (e.key === ' ') { e.preventDefault(); setMode(mode === 'flash' ? 'pause' : 'flash'); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); setLevel(level + 5); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); setLevel(level - 5); }
+});
+setMode('aim');
+</script>
+</body>
+</html>
