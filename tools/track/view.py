@@ -1,28 +1,34 @@
 # Turn a track.c recording into an mp4 with the centroid marked (red cross), plus a summary.
-# usage: view.py rec_dir [playback_fps]   (default 25 = 10x slow motion at 250 fps)
+# usage: view.py rec_dir [playback_fps] [csv]   (default 25 = 10x slow motion at 250 fps;
+#        csv defaults to track.csv, use replay.csv for a `track -p` replay)
 # needs numpy and ffmpeg
 import csv, subprocess, sys
 import numpy as np
 
 d = sys.argv[1]
 play = sys.argv[2] if len(sys.argv) > 2 else "25"
+name = sys.argv[3] if len(sys.argv) > 3 else "track.csv"
 W, H = 640, 400
-rows = list(csv.DictReader(open(f"{d}/track.csv")))
+rows = list(csv.DictReader(open(f"{d}/{name}")))
 frames = np.fromfile(f"{d}/frames.raw", np.uint8).reshape(-1, H, W)
 
-ts = np.array([int(r["ts_us"]) for r in rows])
-seq = np.array([int(r["seq"]) for r in rows])
 cx = np.array([float(r["cx"]) for r in rows])
 cy = np.array([float(r["cy"]) for r in rows])
 proc = np.array([int(r["proc_us"]) for r in rows])
 found = ~np.isnan(cx)
-print(f"{len(rows)} frames over {(ts[-1] - ts[0]) / 1e3:.1f} ms, {np.mean(np.diff(ts)):.1f} us/frame, "
-      f"{int(np.sum(np.diff(seq) - 1))} dropped")
+if "ts_us" in rows[0]:
+    ts = np.array([int(r["ts_us"]) for r in rows])
+    seq = np.array([int(r["seq"]) for r in rows])
+    print(f"{len(rows)} frames over {(ts[-1] - ts[0]) / 1e3:.1f} ms, {np.mean(np.diff(ts)):.1f} us/frame, "
+          f"{int(np.sum(np.diff(seq) - 1))} dropped")
+if "mode" in rows[0]:
+    m = [r["mode"] for r in rows]
+    print(f"tracked in window {m.count('1')}, full search {m.count('2')}, not found {m.count('0')}")
 print(f"object found in {found.sum()} frames ({100 * found.mean():.1f}%), "
       f"x {np.nanmin(cx):.1f}-{np.nanmax(cx):.1f}, y {np.nanmin(cy):.1f}-{np.nanmax(cy):.1f}")
 print(f"processing mean {proc.mean():.0f} us, max {proc.max()} us")
 
-out = f"{d}/track.mp4"
+out = f"{d}/{name[:-4]}.mp4"
 ff = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24",
                        "-s", f"{W}x{H}", "-r", play, "-i", "-", "-pix_fmt", "yuv420p", out],
                       stdin=subprocess.PIPE)

@@ -1,4 +1,9 @@
 # System architecture: block diagram, 2026-11-02
+pizero:
+tom@192.168.1.48
+Pi 3 B:
+tom@192.168.1.94
+password for both is "1234".
 
 The first sketch is in `block_diagram.jpg`. This doc types it out and adds the blocks it was missing. The numbers come from `crop-evaluation.md` and `test-results-2026-10-29.md`.
 
