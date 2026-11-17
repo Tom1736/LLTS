@@ -1,5 +1,6 @@
 # Kamera-Grundlagen OV9281 (Stand 2026-11-02)
-
+Modell:
+https://www.bastelgarage.ch/1mp-ov9281-global-shutter-camera-79-fov-for-raspberry-pi-4b-5?search=OV9281
 Antworten auf die Fragen, die beim Einrichten aufkamen, mit den **gemessenen** Werten der Zero-Kamera. Details und Messmethode stehen in [test-results-2026-11-02.md](testing%20documents/test-results-2026-11-02.md).
 
 ## Datenblatt (Shop: bastelgarage.ch, DFRobot SEN0634)

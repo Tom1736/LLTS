@@ -1,4 +1,14 @@
 # System architecture: block diagram, 2026-11-02
+pizero:
+tom@192.168.1.48
+Pi 3 B:
+tom@192.168.1.94
+password for both is "1234".
+
+Galvo link:
+https://de.aliexpress.com/item/1005010190669822.html?spm=a2g0o.order_list.order_list_main.5.617f5c5feupnkl&gatewayAdapt=glo2deu
+cameras link:
+https://www.bastelgarage.ch/1mp-ov9281-global-shutter-camera-79-fov-for-raspberry-pi-4b-5?search=OV9281
 
 The first sketch is in `block_diagram.jpg`. This doc types it out and adds the blocks it was missing. The numbers come from `crop-evaluation.md` and `test-results-2026-10-29.md`.
 

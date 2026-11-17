@@ -1,15 +1,21 @@
 // Dark-object tracker for the OV9281 at 640x400 Y8 (raw V4L2 capture via unicam).
-// Every frame: copy it out of the uncached DMA buffer, take the centroid of all pixels
-// darker than their per-pixel threshold. The threshold map is -r percent (default 50) of each
-// pixel's mean over CALIB frames sampled during the first second, so static dark things
-// (cables, corners) never count; start with the object out of view or moving (an object that
-// stays still for that second becomes background). -t sets one absolute threshold instead. Once the dark cloud first has >= min_pixels, record every
-// following frame and its centroid into RAM; on stop (buffer full or Ctrl-C) write
-// <dir>/frames.raw (640x400 8-bit, concatenated), <dir>/track.csv and the threshold map
-// <dir>/threshold.pgm (black = ignored).
+// A pixel is dark if it is below its threshold: -r percent (default 50) of its mean over CALIB
+// frames sampled during the first second, so static dark things (cables, corners) never count.
+// Start with the object out of view or moving (an object that stays still for that second
+// becomes background). -t sets one absolute threshold instead.
+// Every frame: copy it out of the uncached DMA buffer, then find the object as a 4-connected
+// blob of dark pixels with >= min_pixels whose pixels average below DARK_MAX of their
+// threshold (black, not a shadow or a hand). If several qualify, take the one with the most
+// darkness, sum(threshold - pixel). The centroid is the blob's mass average.
+// Tracking: blobs are seeded only within +-SEARCH_R px of the last centroid plus the last
+// velocity; if none qualifies there, the whole frame is searched.
+// From the first detection on, record every frame and its centroid into RAM; on stop (buffer
+// full or Ctrl-C) write <dir>/frames.raw (640x400 8-bit, concatenated), <dir>/track.csv and
+// the threshold map <dir>/threshold.pgm (black = ignored).
 //
 // usage: track [-f fps] [-r percent | -t thresh] [-m min_pixels] [-n frames]
 //              [-e exposure_lines] [-g gain] [-o dir]
+//        track -p dir   replay a recording through the detector, writes <dir>/replay.csv
 // build: gcc -O3 -Wall -o track track.c -lm
 #include <errno.h>
 #include <fcntl.h>
@@ -41,8 +47,11 @@
 #define CALIB 25              // empty-scene samples, one every CALIB_STEP frames
 #define CALIB_STEP 10
 #define THR_MIN 15            // below this the pixel is too dark to see a darker object: ignore it
+#define DARK_MAX 7 / 10       // blob pixels must average below this fraction of their threshold
+#define SEARCH_R 40           // tracking window half-size, px; the throw test moved ~15 px/frame
 
-typedef struct { uint32_t seq; uint64_t ts_us; uint32_t n; float cx, cy; uint16_t proc_us, lat_us; } rec_t;
+typedef struct { uint32_t seq; uint64_t ts_us; uint32_t n; float cx, cy; uint8_t mode; uint16_t proc_us, lat_us; } rec_t;
+typedef struct { uint32_t n; uint64_t sx, sy, sp, st; } blob_t;  // px, sum x, sum y, sum pixel, sum threshold
 
 static volatile sig_atomic_t stop;
 static void on_sigint(int s) { (void)s; stop = 1; }
@@ -68,32 +77,104 @@ static void set_ctrl(int fd, uint32_t id, int32_t val, const char *name) {
 
 static uint8_t thr_map[FS];
 static uint16_t bg_sum[FS];
+static uint16_t stamp[FS], cur;  // stamp[i] == cur: pixel already belongs to a blob this frame
+static int32_t stack[FS];
+static int nmin = 100;
 
-// Centroid of all pixels below their threshold. Branch-free so gcc vectorises the inner loop.
-static uint32_t detect(const uint8_t *p, float *cx, float *cy) {
-    uint32_t n = 0;
-    uint64_t sx = 0, sy = 0;
-    for (int y = 0; y < H; y++) {
-        const uint8_t *r = p + y * W, *t = thr_map + y * W;
-        uint32_t rn = 0, rx = 0;
-        for (int x = 0; x < W; x++) {
-            uint32_t m = r[x] < t[x];
-            rn += m;
-            rx += m * x;
-        }
-        n += rn; sx += rx; sy += (uint64_t)rn * y;
+// Flood-fill the 4-connected dark blob containing pixel i.
+static blob_t fill(const uint8_t *p, int i) {
+    blob_t b = {0};
+    int sp = 0;
+    stack[sp++] = i; stamp[i] = cur;
+    while (sp) {
+        int j = stack[--sp], x = j % W, y = j / W;
+        b.n++; b.sx += x; b.sy += y; b.sp += p[j]; b.st += thr_map[j];
+#define PUSH(k) if (stamp[k] != cur && p[k] < thr_map[k]) { stamp[k] = cur; stack[sp++] = k; }
+        if (x > 0) PUSH(j - 1)
+        if (x < W - 1) PUSH(j + 1)
+        if (y > 0) PUSH(j - W)
+        if (y < H - 1) PUSH(j + W)
     }
-    if (n) { *cx = (float)sx / n; *cy = (float)sy / n; }
-    return n;
+    return b;
+}
+
+// Best qualifying blob with a pixel inside [x0,x1) x [y0,y1); blobs are filled in full.
+static int find(const uint8_t *p, int x0, int y0, int x1, int y1, blob_t *best) {
+    int found = 0;
+    x0 = x0 < 0 ? 0 : x0; y0 = y0 < 0 ? 0 : y0;
+    x1 = x1 > W ? W : x1; y1 = y1 > H ? H : y1;
+    for (int y = y0; y < y1; y++)
+        for (int xs = x0; xs < x1; xs += 32) {
+            int xe = xs + 32 < x1 ? xs + 32 : x1;
+            const uint8_t *pr = p + y * W, *tr = thr_map + y * W;
+            uint8_t any = 0;  // vectorised pre-check, almost every chunk has no dark pixel
+            for (int x = xs; x < xe; x++) any |= pr[x] < tr[x];
+            if (!any) continue;
+            for (int i = y * W + xs; i < y * W + xe; i++) {
+                if (p[i] >= thr_map[i] || stamp[i] == cur) continue;
+                blob_t b = fill(p, i);
+                if (b.n >= (uint32_t)nmin && b.sp < b.st * DARK_MAX &&
+                    (!found || b.st - b.sp > best->st - best->sp)) { *best = b; found = 1; }
+            }
+        }
+    return found;
+}
+
+// Returns 0 = not found, 1 = found in the tracking window, 2 = found by full-frame search.
+static int track(const uint8_t *p, float *cx, float *cy, uint32_t *n) {
+    static int have;
+    static float lx, ly, vx, vy;
+    blob_t b = {0};
+    int mode = 0;
+    if (++cur == 0) { memset(stamp, 0, sizeof stamp); cur = 1; }
+    if (have) {
+        int px = lroundf(lx + vx), py = lroundf(ly + vy);
+        if (find(p, px - SEARCH_R, py - SEARCH_R, px + SEARCH_R + 1, py + SEARCH_R + 1, &b)) mode = 1;
+    }
+    if (!mode && find(p, 0, 0, W, H, &b)) mode = 2;
+    if (!mode) { have = 0; *cx = *cy = NAN; *n = 0; return 0; }
+    *cx = (float)b.sx / b.n; *cy = (float)b.sy / b.n; *n = b.n;
+    vx = have ? *cx - lx : 0; vy = have ? *cy - ly : 0;
+    lx = *cx; ly = *cy; have = 1;
+    return mode;
+}
+
+static void replay(const char *dir) {
+    char path[96];
+    snprintf(path, sizeof path, "%s/threshold.pgm", dir);
+    FILE *t = fopen(path, "rb");
+    if (!t || fscanf(t, "P5 %*d %*d %*d") < 0 || fgetc(t) < 0 || fread(thr_map, FS, 1, t) != 1) die(path);
+    fclose(t);
+    snprintf(path, sizeof path, "%s/frames.raw", dir);
+    FILE *f = fopen(path, "rb");
+    if (!f) die(path);
+    snprintf(path, sizeof path, "%s/replay.csv", dir);
+    FILE *c = fopen(path, "w");
+    if (!c) die(path);
+    fprintf(c, "frame,blob_px,cx,cy,mode,proc_us\n");
+    static uint8_t p[FS];
+    int i = 0, modes[3] = {0}, proc_max = 0;
+    uint64_t proc_sum = 0;
+    for (; fread(p, FS, 1, f) == 1; i++) {
+        float cx, cy;
+        uint32_t n;
+        uint64_t t0 = now_us();
+        int mode = track(p, &cx, &cy, &n), proc = now_us() - t0;
+        modes[mode]++; proc_sum += proc; proc_max = proc > proc_max ? proc : proc_max;
+        fprintf(c, "%d,%u,%.2f,%.2f,%d,%d\n", i, n, cx, cy, mode, proc);
+    }
+    fclose(c);
+    if (i) printf("%d frames: %d tracked in window, %d full search, %d not found; detect mean %.0f us, max %d us -> %s\n",
+                  i, modes[1], modes[2], modes[0], (double)proc_sum / i, proc_max, path);
 }
 
 int main(int argc, char **argv) {
     double fps = 250;
-    int thr = -1, ratio = 50, nmin = 100, nmax = 1000, expo = -1, gain = -1, o;
-    char dir[64];
+    int thr = -1, ratio = 50, nmax = 1000, expo = -1, gain = -1, o;
+    char dir[64], *replay_dir = NULL;
     time_t now = time(NULL);
     strftime(dir, sizeof dir, "rec_%Y%m%d_%H%M%S", localtime(&now));
-    while ((o = getopt(argc, argv, "f:r:t:m:n:e:g:o:")) != -1) switch (o) {
+    while ((o = getopt(argc, argv, "f:r:t:m:n:e:g:o:p:")) != -1) switch (o) {
         case 'f': fps = atof(optarg); break;
         case 'r': ratio = atoi(optarg); break;
         case 't': thr = atoi(optarg); break;
@@ -102,9 +183,11 @@ int main(int argc, char **argv) {
         case 'e': expo = atoi(optarg); break;
         case 'g': gain = atoi(optarg); break;
         case 'o': snprintf(dir, sizeof dir, "%s", optarg); break;
+        case 'p': replay_dir = optarg; break;
         default: fprintf(stderr, "usage: %s [-f fps] [-r percent | -t thresh] [-m min_pixels] "
-                                 "[-n frames] [-e exposure_lines] [-g gain] [-o dir]\n", argv[0]); return 1;
+                                 "[-n frames] [-e exposure_lines] [-g gain] [-o dir] | -p dir\n", argv[0]); return 1;
     }
+    if (replay_dir) { replay(replay_dir); return 0; }
     // frame = (VTS + 0.95) lines, VTS = 400 + vblank
     int vblank = (int)lround(1e6 / fps / LINE_US - 0.95) - H;
     if (vblank < VBLANK_MIN) { fprintf(stderr, "fps too high: max %.1f\n", 1e6 / ((H + VBLANK_MIN + 0.95) * LINE_US)); return 1; }
@@ -192,20 +275,19 @@ int main(int argc, char **argv) {
             continue;
         }
         uint64_t t1 = now_us();
-        float cx = NAN, cy = NAN;
-        uint32_t n = detect(dst, &cx, &cy);
-        if (n < (uint32_t)nmin) cx = cy = NAN;
-        int proc = now_us() - t0;
+        float cx, cy;
+        uint32_t n;
+        int mode = track(dst, &cx, &cy, &n), proc = now_us() - t0;
 
         if (total && seq != last_seq + 1) gaps += seq - last_seq - 1;
         last_seq = seq; total++;
         proc_sum += proc; copy_sum += t1 - t0; if (proc > proc_max) proc_max = proc;
-        if (!recording && n >= (uint32_t)nmin) { recording = 1; printf("detected at seq %u, recording\n", seq); }
-        if (recording) log[nrec++] = (rec_t){seq, ts, n, cx, cy, proc, t0 - ts};
+        if (!recording && mode) { recording = 1; printf("detected at seq %u, recording\n", seq); }
+        if (recording) log[nrec++] = (rec_t){seq, ts, n, cx, cy, mode, proc, t0 - ts};
         if (t0 - t_print > 500000) {
             t_print = t0;
-            printf("seq %6u  dark px %6u  centroid %6.1f %6.1f  proc %4d us (max %d)  drops %d  rec %d\n",
-                   seq, n, cx, cy, proc, proc_max, gaps, nrec);
+            printf("seq %6u  blob px %6u  centroid %6.1f %6.1f  %s  proc %4d us (max %d)  drops %d  rec %d\n",
+                   seq, n, cx, cy, mode == 1 ? "tracked" : mode == 2 ? "search " : "lost   ", proc, proc_max, gaps, nrec);
             fflush(stdout);
         }
     }
@@ -221,10 +303,10 @@ int main(int argc, char **argv) {
     snprintf(path, sizeof path, "%s/track.csv", dir);
     FILE *c = fopen(path, "w");
     if (!c) die(path);
-    fprintf(c, "frame,seq,ts_us,dark_px,cx,cy,proc_us,dq_minus_ts_us\n");
+    fprintf(c, "frame,seq,ts_us,blob_px,cx,cy,mode,proc_us,dq_minus_ts_us\n");
     for (int i = 0; i < nrec; i++)
-        fprintf(c, "%d,%u,%llu,%u,%.2f,%.2f,%u,%u\n", i, log[i].seq, (unsigned long long)log[i].ts_us,
-                log[i].n, log[i].cx, log[i].cy, log[i].proc_us, log[i].lat_us);
+        fprintf(c, "%d,%u,%llu,%u,%.2f,%.2f,%u,%u,%u\n", i, log[i].seq, (unsigned long long)log[i].ts_us,
+                log[i].n, log[i].cx, log[i].cy, log[i].mode, log[i].proc_us, log[i].lat_us);
     fclose(c);
     chown_to_caller(path);
     snprintf(path, sizeof path, "%s/frames.raw", dir);
