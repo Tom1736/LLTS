@@ -15,6 +15,7 @@ Objekte in der Luft mit 2 Kameras tracken und mit einem Laser anleuchten (siehe 
 | [tools/crop/](tools/crop/) | ROI setzen und prüfen (`roi.py`, `verify_roi.py`, `roi_test.c`) |
 | [tools/track/](tools/track/) | Tracking (`track.c`, `view.py`) |
 | [tools/sync/](tools/sync/README.md) | Frame-Sync (`camsync.c`, `pulse.sh`), Blitztest (`flash.html`, `run_flash_test.sh`), Anleitung und Verkabelung |
+| [cad/head-mount/](cad/head-mount/README.md) | 3D-Druck-Halterung für Kameras, Galvo und Laser (OpenSCAD, parametrisch), STLs, Laser-Justage |
 | [calib/](calib/) | Kalibrierbilder und Ergebnisse pro Kamera (`calibration.json`) |
 
 ## Stand 2026-11-02

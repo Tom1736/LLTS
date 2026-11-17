@@ -29,6 +29,9 @@ type %USERPROFILE%\.ssh\id_ed25519.pub | ssh tom@<ip> "mkdir -p ~/.ssh && chmod 
 Stand 2026-11-03 ist auf beiden Pis ein Schlüssel vom Mac hinterlegt (SSH-Aliase `pi3` und `pizero`).
 
 ## Kamera-Konfiguration
+
+CAM: https://www.bastelgarage.ch/1mp-ov9281-global-shutter-camera-79-fov-for-raspberry-pi-4b-5?search=OV9281
+
 Die OV9281 wird **nicht automatisch erkannt**: `camera_auto_detect=1` gilt nur für offizielle Raspberry-Pi-Kameras. Auf beiden Pis steht deshalb in `/boot/firmware/config.txt`:
 ```
 camera_auto_detect=0
