@@ -42,6 +42,8 @@ Danach ist ein Neustart nötig. Prüfen mit `rpicam-hello --list-cameras`. Erwar
 Auf beiden Pis liegt eine Sicherung der vorherigen Datei als `config.txt.bak-2026-11-02`. Auf dem Zero ist es der Stand vor den Kamera-Einträgen, auf dem 3B der Stand vor der Umstellung auf I2C mit 400 kHz.
 **I2C mit 400 kHz ist nötig**, damit das ROI ohne Drops verschoben werden kann (siehe [crop-evaluation.md](testing%20documents/crop-evaluation.md)).
 
+**Pi 3B, DAC-Test (2026-11-16):** Zusätzlich `dtparam=i2c_arm_baudrate=400000` direkt unter `dtparam=i2c_arm=on` (Header-I2C, GPIO2/3, `/dev/i2c-1`), Sicherung als `config.txt.bak-2026-11-16`. Der GP8403-DAC antwortet auf Adresse 0x5F, Test: [tools/dac/dac_test.py](tools/dac/dac_test.py), Latenz-Marker auf GPIO 27 (Pin 13).
+
 Modi (beide Pis gleich):
 | Format | 640x400 | 1280x720 | 1280x800 |
 |---|---|---|---|
