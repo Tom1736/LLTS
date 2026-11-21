@@ -1,7 +1,7 @@
 # Kamera-Grundlagen OV9281 (Stand 2026-11-02)
 Modell:
 https://www.bastelgarage.ch/1mp-ov9281-global-shutter-camera-79-fov-for-raspberry-pi-4b-5?search=OV9281
-Antworten auf die Fragen, die beim Einrichten aufkamen, mit den **gemessenen** Werten der Zero-Kamera. Details und Messmethode stehen in [test-results-2026-11-02.md](testing%20documents/test-results-2026-11-02.md).
+Antworten auf die Fragen, die beim Einrichten aufkamen, mit den **gemessenen** Werten der Zero-Kamera. Details und Messmethode stehen in [test-results-2026-11-02.md](test-reports/test-results-2026-11-02.md).
 
 ## Datenblatt (Shop: bastelgarage.ch, DFRobot SEN0634)
 | | |
@@ -86,7 +86,7 @@ img_u = cv2.remap(img, m1, m2, cv2.INTER_LINEAR)   # danach gilt newK, nicht K
 - Mit `alpha=0` wird so zugeschnitten, dass keine schwarzen Ränder entstehen; dabei geht etwas Bildwinkel verloren. Mit `alpha=1` bleibt alles erhalten, dafür gibt es schwarze Ecken.
 - Die Verzeichnung ist **kein Schärfeverlust**, sondern nur ein Lagefehler. Nach der Kalibrierung lässt er sich bis auf ca. 0,15 px herausrechnen.
 - **Koordinaten:** Die Kalibrierung gilt für **1280x800 in Ausgabe-Pixeln**, also für das Bild so, wie V4L2 es liefert, mit Mirror und Flip des Treibers und ohne weitere Drehung. Das sind dieselben Koordinaten, die `tools/crop/roi.py` benutzt.
-- **Mit Sensor-Crop (ROI)** ab (x0, y0): fx, fy und `dist` bleiben gleich, nur die Bildmitte verschiebt sich auf cx − x0, cy − y0. Das gilt, weil der Crop pixelgenau ist ([crop-evaluation.md](testing%20documents/crop-evaluation.md)). Zum Entzerren eines ROI-Punkts also erst x0/y0 addieren und dann mit dem vollen K rechnen.
+- **Mit Sensor-Crop (ROI)** ab (x0, y0): fx, fy und `dist` bleiben gleich, nur die Bildmitte verschiebt sich auf cx − x0, cy − y0. Das gilt, weil der Crop pixelgenau ist ([crop-evaluation.md](test-reports/crop-evaluation.md)). Zum Entzerren eines ROI-Punkts also erst x0/y0 addieren und dann mit dem vollen K rechnen.
 - **640x400** (2× Skipping): K mit etwa 0,5 skalieren. Der genaue Halbpixel-Versatz ist nicht geprüft.
 
 ## Fokus und Schärfentiefe
@@ -113,7 +113,7 @@ img_u = cv2.remap(img, m1, m2, cv2.INTER_LINEAR)   # danach gilt newK, nicht K
 | Brennweite | 1–3 % (hängt vom Einschrauben und Fokus ab) | 2 % ≈ 12 px am Rand ≈ 0,7° |
 | Verzeichnung | eher klein (gleiche Linse) | taugt als Startwert |
 
-Für die Stereo-Kalibrierung (beide Kameras zueinander) zuerst jede Kamera einzeln kalibrieren, dann gemeinsame Aufnahmen machen. Dafür muss auch die **Feldgröße des Bretts** gemessen werden. Anleitung: [tools/calib/README.md](tools/calib/README.md).
+Für die Stereo-Kalibrierung (beide Kameras zueinander) zuerst jede Kamera einzeln kalibrieren, dann gemeinsame Aufnahmen machen. Dafür muss auch die **Feldgröße des Bretts** gemessen werden. Anleitung: [tools/calib/README.md](../tools/calib/README.md).
 
 ## Genauigkeit der Zero-Kalibrierung
 - RMS-Reprojektionsfehler 0,148 px.

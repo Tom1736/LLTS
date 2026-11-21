@@ -1,7 +1,7 @@
 # Frame sync between the two cameras, 2026-11-03
 
 Pi 3B (192.168.1.94, camera node A) and Pi Zero W (192.168.1.48, camera node B), both OV9281 at 640x400 R8, 100 fps.
-Tools are in `tools/sync/` (how-to in German: [tools/sync/README.md](../tools/sync/README.md)). On the Pis they live in `~/sync`.
+Tools are in `tools/sync/` (how-to in German: [tools/sync/README.md](../../tools/sync/README.md)). On the Pis they live in `~/sync`.
 
 ## Summary
 - **Both sensors are phase-locked to a 10 Hz hardware PWM pulse from the Pi 3.** One wire carries it to GPIO17 on both Pis. Each Pi timestamps the edges in its own clock and steers its own sensor's vblank, one line at a time.

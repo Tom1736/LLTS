@@ -1,6 +1,6 @@
 # Kamera kalibrieren (OV9281)
 
-Jede Kamera muss **einzeln** kalibriert werden. Gleiches Modell heißt nicht gleiche Werte. Die Bildmitte allein lag beim Zero schon 29 px daneben, das sind ca. 1,8° Richtungsfehler. Ergebnisse und Erfahrungen vom Zero: [test-results-2026-11-02.md](../../testing%20documents/test-results-2026-11-02.md), Grundlagen: [Kamera-Grundlagen.md](../../Kamera-Grundlagen.md).
+Jede Kamera muss **einzeln** kalibriert werden. Gleiches Modell heißt nicht gleiche Werte. Die Bildmitte allein lag beim Zero schon 29 px daneben, das sind ca. 1,8° Richtungsfehler. Ergebnisse und Erfahrungen vom Zero: [test-results-2026-11-02.md](../../docs/test-reports/test-results-2026-11-02.md), Grundlagen: [Kamera-Grundlagen.md](../../docs/kamera-grundlagen.md).
 
 ## Vorher prüfen
 - **Kamera wird erkannt:** `rpicam-hello --list-cameras` auf dem Pi zeigt `ov9281`. Falls nicht, braucht `/boot/firmware/config.txt` diese Zeilen (danach Neustart):

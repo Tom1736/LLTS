@@ -84,7 +84,7 @@ Bootstrap (40 resamples of the views, recalibrated each time), 5-parameter model
 - `tools/calib/calib_capture.py <pi-ip> <outdir> [target]`: auto capture from the live view. It posts its status to the page and resumes if `outdir` already has views.
 - `tools/calib/calib_solve.py <dir>`: calibration with outlier rejection, FOV and distortion. Writes `calibration.json`.
 - `tools/calib/stability.py <dir> [resamples]`: bootstrap stability and point coverage.
-- `tools/calib/calibrate_pi.sh <pi-ip> <name>`: whole procedure in one command. Step-by-step guide in [tools/calib/README.md](../tools/calib/README.md).
+- `tools/calib/calibrate_pi.sh <pi-ip> <name>`: whole procedure in one command. Step-by-step guide in [tools/calib/README.md](../../tools/calib/README.md).
 - `tools/calib/quality.py <jpgs…>`: edge width, contrast, noise, clipping. The board ROI is set by the env variable `ROI=y0,y1,x0,x1`.
 - PC requirements: Python with `opencv-python`, `numpy` and `pillow`.
 

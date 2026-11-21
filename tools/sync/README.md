@@ -1,7 +1,7 @@
 # Frame-Sync der beiden Kameras
 
 Der Pi 3 erzeugt mit seiner Hardware-PWM einen 10-Hz-Takt auf GPIO18. Dieser Takt geht an GPIO17 **beider** Pis. Jeder Pi stempelt die Flanken in seiner eigenen Uhr und regelt das vblank seines Sensors so, dass kurz nach jeder Flanke ein Bild beginnt.
-Ergebnis: beide Kameras liegen innerhalb von ca. ±8 µs (eine Sensorzeile). Wie es funktioniert und alle Messwerte: [frame-sync-2026-11-03.md](../../testing%20documents/frame-sync-2026-11-03.md).
+Ergebnis: beide Kameras liegen innerhalb von ca. ±8 µs (eine Sensorzeile). Wie es funktioniert und alle Messwerte: [frame-sync-2026-11-03.md](../../docs/test-reports/frame-sync-2026-11-03.md).
 
 ## Verkabelung
 | Von | Nach | Wozu |
