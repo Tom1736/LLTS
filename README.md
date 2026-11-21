@@ -5,10 +5,10 @@ Low-latency laser tracking of a ping pong ball. Two synchronised global-shutter 
 **Status:** work in progress, actively developed. The parts below run and are measured; we are now joining them into one closed loop.
 
 <p align="center">
-  <img src="docs/images/head-laser-on.jpg" alt="Printed head with the laser hitting the galvo mirrors" width="49%">
-  <img src="docs/images/electronics-bench.jpg" alt="Analog stage, 5 V reference and ±12 V supply" width="49%">
+  <img src="docs/images/head-laser-on.jpg" alt="Printed head with the laser hitting the galvo mirrors" width="44%">
+  <img src="cad/head-mount/preview_top_fov.png" alt="Top view of the head model with camera fields of view and galvo scan cone" width="54%">
 </p>
-<p align="center"><sub>Left: the printed head with the laser on the galvo mirrors, cameras at both ends; behind it the galvo drivers, the Pi 3B and the Pi Zero W. Right: the analog stage on the breadboard, its separate 5 V reference (MB102, fed by a USB-C PD trigger) and the ±12 V supply.</sub></p>
+<p align="center"><sub>Left: the printed head with the laser on the galvo mirrors, cameras at both ends; behind it the galvo drivers, the Pi 3B and the Pi Zero W. Right: the same head in the model, seen from above, with the two camera fields of view (blue) and the galvo's ±30° scan cone (red).</sub></p>
 
 ## Hardware
 
@@ -77,8 +77,8 @@ Automatic capture from a tablet checkerboard, 60 views, 0.148 px reprojection er
 The DAC scripts already draw circles, squares and text with the galvo, with hard voltage caps and slew limits to protect the mirrors ([`tools/dac/`](tools/dac/), [analog stage](docs/galvo-analog-stage.md)). The head is modelled with the camera fields of view and the ±30° scan cone, so none of them touch the frame ([CAD](cad/head-mount/README.md)).
 
 <p align="center">
-  <img src="cad/head-mount/preview_front.png" alt="CAD model of the head" width="49%">
-  <img src="cad/head-mount/preview_top_fov.png" alt="Top view with camera fields of view and galvo scan cone" width="49%">
+  <img src="cad/head-mount/preview_front.png" alt="CAD model of the head" width="54%">
+  <img src="docs/images/electronics-bench.jpg" alt="Analog stage on the breadboard, 5 V reference and ±12 V supply" width="44%">
 </p>
 
 ## Repo layout
