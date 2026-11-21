@@ -5,10 +5,10 @@ Low-latency laser tracking of a ping pong ball. Two synchronised global-shutter 
 **Status:** work in progress, actively developed. The parts below run and are measured; we are now joining them into one closed loop.
 
 <p align="center">
-  <img src="docs/images/head-mount-assembled.jpg" alt="Printed head with two cameras, galvo and laser" width="300">
-  <img src="docs/images/analog-stage-breadboard.jpg" alt="Analog stage between DAC and galvo on a breadboard" width="300">
+  <img src="docs/images/head-laser-on.jpg" alt="Printed head with the laser hitting the galvo mirrors" width="49%">
+  <img src="docs/images/electronics-bench.jpg" alt="Analog stage, 5 V reference and ±12 V supply" width="49%">
 </p>
-<p align="center"><sub>The printed head: cameras at both ends, XY galvo in the middle, laser in two sliding clips. Right: DAC and op-amp stage driving the galvo.</sub></p>
+<p align="center"><sub>Left: the printed head with the laser on the galvo mirrors, cameras at both ends; behind it the galvo drivers, the Pi 3B and the Pi Zero W. Right: the analog stage on the breadboard, its separate 5 V reference (MB102, fed by a USB-C PD trigger) and the ±12 V supply.</sub></p>
 
 ## Hardware
 
