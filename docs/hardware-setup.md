@@ -66,13 +66,37 @@ Der Pi 3 gibt auf GPIO18 einen 10-Hz-PWM-Takt aus. Beide Pis lesen ihn auf GPIO1
 - Frei gehalten für später: GPIO14/15 (UART Zero → Pi 3) und GPIO7-11 (SPI0 für den DAC).
 - GPIO17 ist auf dem Zero auch SPI1 CE1. Wird SPI1 einmal gebraucht, den Eingang mit `camsync -l <pin>` verlegen.
 
+## Galvo-Spiegel
+- **Bestellt:** ZJ15K Galvo-Scanner, [AliExpress 1005010190669822](https://de.aliexpress.com/item/1005010190669822.html)
+
+| | Laut Händler |
+|---|---|
+| Modell | ZJ15K. Titel: „15 kHz SLA 3D 400–700 nm 450 nm Laser-Galvo-Scanner 15 kpps Scannen Galvanometer Galvo-Spiegel DIY Animation Bühnenlicht“ |
+| Geschwindigkeit | bis 15 kpps |
+| Wellenlänge | 400–700 nm (sichtbarer Bereich), im Text zusätzlich 450 nm genannt. Prüfen, ob unser Laser in diesem Bereich liegt. |
+| Versorgung | 12 V DC |
+| Steuerung | „DMX-kompatibel“, eher Werbetext. Galvo-Treiber nehmen normalerweise ein analoges X/Y-Signal. |
+| Paket | 13 × 8 × 9 cm, 0,400 kg |
+| Zertifizierung | CE |
+
+- **Noch unbekannt:** Erst am Gerät bzw. am Treiber ablesen oder messen.
+  - Scanwinkel
+  - Eingangssignal: Spannungsbereich (oft ±5 V oder ±10 V), differentiell oder single-ended
+  - Treiberplatine dabei? Wie sieht die 12-V-Versorgung genau aus (Händler schreibt „integriertes Netzteil“)?
+  - Einschwingzeit / Step-Response
+  - Spiegelgröße / Apertur
+  - Max. Laserleistung
+  - Anschlussbelegung
+- Davon hängen DAC und Verstärker ab: Spannungsbereich, differentiell oder nicht. Die Einschwingzeit geht in die Vorhaltezeit des Prädiktors ein (siehe [system-architecture.md](system-architecture.md)).
+
 ## Wichtig
 - ⚠️ **Das Kamerakabel nie unter Strom ab- oder anstecken.** Danach liefert der Sensor nichts mehr (`stream on failed in subdev`, `Device timeout`). Nur ein Neustart hilft, und das Abstecken kann die Hardware beschädigen.
 - **Zero W:**
   - **Nur 2,4-GHz-WLAN.**
   - **Kleiner 22-poliger Kameraanschluss**, braucht ein Adapterkabel von 22 auf 15 Pins.
   - Nur 1 langsamer Kern. Das Livebild in 1280x800 lastet ihn zu ca. 100 % aus.
-  - Hohe Bildraten wie am 3B (bis 288 fps, mit ROI über 1000 fps) sind auf dem Zero **noch nicht getestet**; das ist Test 8. In der [Systemarchitektur](system-architecture.md) ist der Zero als Kamera-Knoten B vorgesehen. Ob er Aufnahme, ROI-Kopie und Schwerpunkt im Takt schafft, ist offen.
+  - Als Kamera-Knoten B (Test 8, [Ergebnisse](test-reports/test-results-2026-11-02-test8.md)): Die Aufnahme schafft dieselben Bildraten wie der 3B, ohne Drops. Mit einem ROI bis 320 px Breite kommt er auch bei 678–1721 fps mit. Bei voller Breite und bei 640x400 mit Detektion (max. ~150 fps) ist die CPU zu langsam.
+  - ⚠️ Eine SCHED_FIFO-Schleife, die nicht hinterherkommt, legt den Zero komplett lahm, auch SSH. Timeouts deshalb mit höherer Priorität starten, siehe `tools/bench/test8.sh`.
 - **Pi 3B:** Es wird noch **Unterspannung** geloggt, das Netzteil muss geprüft werden (crop-evaluation, Next steps).
 - **Der Treiber schaltet den Sensor aus, wenn nicht gestreamt wird.** Register sind erst nach STREAMON erreichbar, und jedes STREAMON schreibt den Modus neu. Ein ROI muss deshalb nach jedem Start neu gesetzt werden.
 - **Livebild / Fokus / Kalibrierung:** `tools/calib/live.py` auf dem Pi starten und `http://<ip>:8000` öffnen. Anleitung: [tools/calib/README.md](../tools/calib/README.md). Auf dem Zero liegt es auch unter `~/t/live.py`.

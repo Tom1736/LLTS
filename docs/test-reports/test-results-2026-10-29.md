@@ -87,7 +87,7 @@ Drops at 288 fps via rpicam: 439 in 10 s, rising from ~20/s to a steady ~57/s (â
 - Image is valid at full resolution. It is unbinned, so it gets ~4x less signal per pixel than 640x400; at 3.2 ms / gain 16 it is nearly black indoors at night.
 
 ## Not done
-- **8 (Zero W):** needs the Zero W's IP and key access.
+- **8 (Zero W):** done on 2026-11-02, see `test-results-2026-11-02-test8.md`.
 - **9-10 (PWM and phase lock):** no PWM chip yet (needs `dtoverlay=pwm,pin=18,func=2` + reboot) and a jumper GPIO18 (pin 12) â†’ GPIO17 (pin 11) to timestamp edges. libgpiod v2.2.1 and python gpiod 2.2.0 are installed.
 - **11:** galvo and DAC hardware not purchased yet.
 

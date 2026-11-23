@@ -89,7 +89,7 @@ Bootstrap (40 resamples of the views, recalibrated each time), 5-parameter model
 - PC requirements: Python with `opencv-python`, `numpy` and `pillow`.
 
 ## Not done
-- **8 (Zero W) performance**: fps/drop sweep like on the Pi 3B. Not yet run.
+- **8 (Zero W) performance**: done, see `test-results-2026-11-02-test8.md`.
 - Intrinsic calibration of the Pi 3B camera.
 - Stereo calibration: needs both cameras rigidly mounted and the board's square size measured (intrinsics don't need it).
 - Exposure for tracking: indoor light needs ~10 ms or more. Moving objects need ≤ 1 ms, which means roughly 10× more light.

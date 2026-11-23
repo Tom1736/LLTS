@@ -109,6 +109,10 @@ flowchart TB
 7. **The predictor's lead time covers the whole chain:** exposure → packet (~1.85 ms at 128 rows) + UART + compute + DAC + galvo settling.
 
 ## Open points
-- **Pi Zero performance is untested** (test 8). Benchmark capture + ROI copy + centroid at the target fps before committing to the split. `PAIR` waits for the slower of the two paths.
-- The galvo, DAC and amplifier are not chosen yet. Their step response and settling time set part of the predictor's lead time.
+- **Pi Zero W performance** (test 8, `test-results-2026-11-02-test8.md`):
+  - Capture and ROI moves work like on the 3B. A 320 × 128 ROI at 678.7 fps runs without drops.
+  - With the real detection, an estimated ~80 % of the frame is used.
+  - Node B's packet comes ~0.5 ms after node A's, and `PAIR` waits for the slower of the two paths.
+  - Still to measure: the combined loop with detection, ROI write and UART every frame.
+- The galvo is ordered: ZJ15K, 15 kpps, 12 V DC ([AliExpress 1005010190669822](https://de.aliexpress.com/item/1005010190669822.html)). Its input voltage range and settling time are still unknown, see [hardware-setup.md](hardware-setup.md). The DAC and amplifier are not chosen yet. Their step response and settling time set part of the predictor's lead time.
 - The FSIN trigger vs. vblank phase lock choice is open. FSIN needs a wire to both sensors and support in the driver.
